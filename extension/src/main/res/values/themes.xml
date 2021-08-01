@@ -1,10 +1,8 @@
 <resources>
 
-
     <style name="dialogAnim">
         <item name="android:windowEnterAnimation">@anim/anim_dialog1_start</item>
         <item name="android:windowExitAnimation">@anim/anim_dialog1_end</item>
     </style>
-
 
 </resources>

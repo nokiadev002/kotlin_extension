@@ -6,11 +6,15 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Context.*
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Point
 import android.graphics.drawable.ColorDrawable
 import android.location.Location
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Build
 import android.text.TextUtils
@@ -18,11 +22,12 @@ import android.util.Log
 import android.util.Patterns
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
-import androidx.annotation.LayoutRes
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.res.ResourcesCompat
+import androidx.viewbinding.ViewBinding
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -30,12 +35,29 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 
+/*
+*
+    class G : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        context = applicationContext
+    }
+
+    companion object {
+        @SuppressLint("StaticFieldLeak")
+        var context: Context? = null
+            private set
+    }
+    }
+*
+* */
+
 fun log(msg: String) =
     Log.i("lager", msg)
 
 
-//fun toast(msg: String) =
-//    Toast.makeText(G.context, msg, Toast.LENGTH_SHORT).show()
+fun Context.toast(msg: String) =
+    Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
 
 val Context.versionName: String?
@@ -61,25 +83,39 @@ val Context.versionCode: Long?
         null
     }
 
-//val Context.screenSize: Point
-//    get() {
-//        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-////        val display = wm.defaultDisplay
+val Context.screenSize: Point
+    get() {
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 //        val display = wm.defaultDisplay
-//        val size = Point()
-//        display.getSize(size)
-//        return size
-//    }
+        val display = wm.defaultDisplay
+        val size = Point()
+        display.getSize(size)
+        return size
+    }
 
-//val deviceName: String
-//    get() {
-//        val manufacturer = Build.MANUFACTURER
-//        val model = Build.MODEL
-//        return if (model.startsWith(manufacturer))
-//            model.capitalize(Locale.getDefault())
-//        else
-//            manufacturer.capitalize(Locale.getDefault()) + " " + model
-//    }
+
+fun Context.screenSizeName(): String {
+    val screenSize: Int = resources.configuration.screenLayout and
+            Configuration.SCREENLAYOUT_SIZE_MASK
+
+    return when (screenSize) {
+        Configuration.SCREENLAYOUT_SIZE_LARGE -> "Large screen"
+        Configuration.SCREENLAYOUT_SIZE_NORMAL -> "Normal screen"
+        Configuration.SCREENLAYOUT_SIZE_SMALL -> "Small screen"
+        else -> "Screen size is neither large, normal or small"
+    }
+}
+
+
+val deviceName: String
+    get() {
+        val manufacturer = Build.MANUFACTURER
+        val model = Build.MODEL
+        return if (model.startsWith(manufacturer))
+            model.capitalize(Locale.getDefault())
+        else
+            manufacturer.capitalize(Locale.getDefault()) + " " + model
+    }
 
 
 fun Context.directionsTo(location: Location) {
@@ -120,33 +156,35 @@ fun AppCompatActivity.callTo(phoneNumber: String, requestCode: Int) {
 }
 
 
-fun setDialog(@LayoutRes layoutId: Int, activity: Activity): Array<Any> {
-    val alert = AlertDialog.Builder(activity)
-    val view = activity.layoutInflater.inflate(layoutId, null)
-    alert.setCancelable(true)
-    alert.setView(view)
-    alert.context.setTheme(R.style.dialogAnim)
+fun setDialogBinding(
+    binding: ViewBinding,
+    gravity: Int = Gravity.BOTTOM,
+    Animations: Int = R.style.dialogAnim,
+    cancelableOnTouchOutside: Boolean = true
+): AlertDialog {
 
-//    <style name="dialogAnim">
-//    <item name="android:windowEnterAnimation">@anim/anim_dialog1_start</item>
-//    <item name="android:windowExitAnimation">@anim/anim_dialog1_end</item>
-//    </style>
+    /*
+    var binding: ActivityMainBinding = ActivityMainBinding.inflate(layoutInflater)
+     val dialog = setDialogBinding( binding )
+  */
 
+    val alert = AlertDialog.Builder(binding.root.context)
+    alert.setView(binding.root)
+    alert.context.setTheme(Animations)
     val alertDialog = alert.create()
     if (alertDialog.isShowing) {
         alertDialog.dismiss()
     }
-
     alertDialog.setOnDismissListener {
-        //dis Dialog
+        alertDialog.dismiss()
     }
     alertDialog.window!!.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-    alertDialog.setCanceledOnTouchOutside(true)
-    alertDialog.setCancelable(true)
-    alertDialog.window!!.setGravity(Gravity.BOTTOM)
-    alertDialog.window!!.setWindowAnimations(R.style.dialogAnim)
+    alertDialog.setCanceledOnTouchOutside(cancelableOnTouchOutside)
+
+    alertDialog.window!!.setGravity(gravity)
+    alertDialog.window!!.setWindowAnimations(Animations)
     alertDialog.show()
-    return arrayOf(view, alertDialog)
+    return (alertDialog)
 }
 
 fun hideKeyboard(activity: Activity) {
@@ -161,37 +199,38 @@ fun hideKeyboard(activity: Activity) {
 }
 
 val getDate: String
+    @SuppressLint("SimpleDateFormat")
     get() {
         val format = "dd/MM/yyyy hh:mm:ss.SSS"
-        @SuppressLint("SimpleDateFormat") val formatter = SimpleDateFormat(format)
+        val formatter = SimpleDateFormat(format)
         val calendar = Calendar.getInstance()
         calendar.timeInMillis = System.currentTimeMillis()
         return formatter.format(calendar.time)
     }
 
-//val isNetwork: Boolean
-//    get() {
-//        val conMgr =
-//            G.context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-//        val netInfo = conMgr.activeNetworkInfo
-//
-//        return netInfo != null
-//
-//    }
+val Context.isNetwork: Boolean
+    get() {
+        val conMgr =
+            getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        val netInfo = conMgr.activeNetworkInfo
+
+        return netInfo != null
+
+    }
 
 
 fun getPriceFormat(price: String): String =
     DecimalFormat("###,###,###").format(price.toLong())
 
 
-fun isEmailValid1(email: String?): Boolean {
-    val expression = "^[\\w.-]+@([\\w\\-]+\\.)+[A-Z]{2,4}$"
+fun isEmailValid1(email: String): Boolean {
+    val expression = """^[\w.-]+@([\w\-]+\.)+[A-Z]{2,4}$"""
     val pattern: Pattern = Pattern.compile(expression, Pattern.CASE_INSENSITIVE)
     val matcher: Matcher = pattern.matcher(email)
     return matcher.matches()
 }
 
-fun  isEmailValid2(email:String): Boolean {
+fun isEmailValid2(email: String): Boolean {
     return !TextUtils.isEmpty(email) && Patterns.EMAIL_ADDRESS.matcher(email).matches()
 }
 
